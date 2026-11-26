@@ -1,0 +1,46 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: family-finance-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: family_finance
+      MYSQL_USER: family_user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks: [family-net]
+  backend:
+    build: ./backend
+    container_name: family-finance-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://family_user:${MYSQL_PASSWORD}@db:3306/family_finance?charset=utf8mb4
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_NAME: ${ADMIN_NAME}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [family-net]
+  frontend:
+    build: ./frontend
+    container_name: family-finance-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on: [backend]
+    networks: [family-net]
+volumes:
+  mysql_data:
+networks:
+  family-net:
+    driver: bridge
