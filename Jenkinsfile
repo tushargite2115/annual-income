@@ -69,10 +69,13 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -i "$SSH_KEY" \
-                            -o StrictHostKeyChecking=accept-new \
-                            "$SSH_USER"@172.31.8.209 \
-                            "hostname"
+                       ssh -vvv -i "$SSH_KEY" \
+    -o StrictHostKeyChecking=accept-new \
+    -o BatchMode=yes \
+    -o ConnectTimeout=15 \
+    -o ConnectionAttempts=1 \
+    "$SSH_USER"@172.31.8.209 \
+    "hostname"
                     '''
                 }
             }
