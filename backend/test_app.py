@@ -1,8 +1,5 @@
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app import app, db, User
 from werkzeug.security import generate_password_hash
@@ -13,33 +10,18 @@ def client():
     app.config.update(
         TESTING=True,
         SECRET_KEY="test-secret-key",
-        SQLALCHEMY_DATABASE_URI="sqlite://",
+        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         SQLALCHEMY_ENGINE_OPTIONS={
-            "poolclass": StaticPool,
+            "poolclass": __import__(
+                "sqlalchemy.pool", fromlist=["StaticPool"]
+            ).StaticPool,
             "connect_args": {"check_same_thread": False}
         }
     )
 
-    # Create an isolated SQLite database for testing
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
-    )
-
-    connection = engine.connect()
-    transaction = connection.begin()
-
-    db.session.remove()
-    db.engine.dispose()
-
-    # Bind Flask-SQLAlchemy session to the test database
-    db.session.configure(
-        bind=connection
-    )
-
     with app.app_context():
-        db.metadata.create_all(bind=connection)
+        db.session.remove()
+        db.create_all()
 
         user = User(
             name="Test User",
@@ -49,16 +31,11 @@ def client():
         db.session.add(user)
         db.session.commit()
 
-        test_client = app.test_client()
-
-        yield test_client
+        yield app.test_client()
 
         db.session.remove()
-        db.metadata.drop_all(bind=connection)
-
-    transaction.rollback()
-    connection.close()
-    engine.dispose()
+        db.drop_all()
+        db.engine.dispose()
 
 
 def get_token(client):
