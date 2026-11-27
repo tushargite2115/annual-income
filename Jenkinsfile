@@ -42,5 +42,22 @@ pipeline {
                 }
             }
         }
+
+        stage('Test App Server SSH') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'aws-app-ssh',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        ssh -i "$SSH_KEY" \
+                            -o StrictHostKeyChecking=accept-new \
+                            "$SSH_USER"@172.31.8.209 \
+                            "hostname"
+                    '''
+                }
+            }
+        }
     }
 }
