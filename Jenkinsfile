@@ -3,6 +3,21 @@ pipeline {
     agent any
 
     stages {
+
+        // Stage 1: Install dependencies and run backend tests
+        stage('Run Backend Tests') {
+            steps {
+                sh '''
+                    python3 -m venv .venv
+
+                    .venv/bin/pip install -r backend/requirements-dev.txt
+
+                    .venv/bin/pytest -q backend/test_app.py
+                '''
+            }
+        }
+
+        // Stage 2: Build Docker images
         stage('Build Docker Images') {
             steps {
                 sh '''
@@ -19,6 +34,7 @@ pipeline {
             }
         }
 
+        // Stage 3: Push images to Docker Hub
         stage('Push Images to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(
@@ -28,6 +44,7 @@ pipeline {
                 )]) {
                     sh '''
                         set +x
+
                         echo "$DOCKERHUB_TOKEN" | docker login \
                           -u "$DOCKERHUB_USERNAME" --password-stdin
 
@@ -43,6 +60,7 @@ pipeline {
             }
         }
 
+        // Stage 4: Test SSH connection to application EC2
         stage('Test App Server SSH') {
             steps {
                 withCredentials([sshUserPrivateKey(
@@ -60,6 +78,7 @@ pipeline {
             }
         }
 
+        // Stage 5: Deploy to application EC2
         stage('Deploy to App EC2') {
             steps {
                 withCredentials([sshUserPrivateKey(
