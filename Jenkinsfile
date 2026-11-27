@@ -59,5 +59,22 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to App EC2') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'aws-app-ssh',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh '''
+                        ssh -i "$SSH_KEY" \
+                            -o StrictHostKeyChecking=accept-new \
+                            "$SSH_USER"@172.31.8.209 \
+                            'cd /home/ubuntu/annual-income && docker compose pull backend frontend && docker compose up -d backend frontend'
+                    '''
+                }
+            }
+        }
     }
 }
