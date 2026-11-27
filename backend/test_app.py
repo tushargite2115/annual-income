@@ -1,3 +1,7 @@
+import os
+
+# Use an isolated SQLite database for automated tests
+os.environ["DATABASE_URL"] = "sqlite://"
 
 import pytest
 
