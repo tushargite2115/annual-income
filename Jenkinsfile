@@ -3,21 +3,43 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
+        stage('Build Docker Images') {
             steps {
-                checkout scm
+                sh '''
+                    docker build \
+                      -t tushargite2115/annual-income-backend:latest \
+                      -t tushargite2115/annual-income-backend:${BUILD_NUMBER} \
+                      ./backend
+
+                    docker build \
+                      -t tushargite2115/annual-income-frontend:latest \
+                      -t tushargite2115/annual-income-frontend:${BUILD_NUMBER} \
+                      ./frontend
+                '''
             }
         }
 
-        stage('Build Backend Image') {
+        stage('Push Images to Docker Hub') {
             steps {
-                sh 'docker build -t annual-income-backend:jenkins ./backend'
-            }
-        }
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKERHUB_USERNAME',
+                    passwordVariable: 'DOCKERHUB_TOKEN'
+                )]) {
+                    sh '''
+                        set +x
+                        echo "$DOCKERHUB_TOKEN" | docker login \
+                          -u "$DOCKERHUB_USERNAME" --password-stdin
 
-        stage('Build Frontend Image') {
-            steps {
-                sh 'docker build -t annual-income-frontend:jenkins ./frontend'
+                        docker push tushargite2115/annual-income-backend:latest
+                        docker push tushargite2115/annual-income-backend:${BUILD_NUMBER}
+
+                        docker push tushargite2115/annual-income-frontend:latest
+                        docker push tushargite2115/annual-income-frontend:${BUILD_NUMBER}
+
+                        docker logout
+                    '''
+                }
             }
         }
     }
