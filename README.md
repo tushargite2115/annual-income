@@ -47,3 +47,4 @@ Keep backups securely off the EC2 instance and test restores.
 - Do not expose MySQL 3306 publicly. Restrict port 80 during testing; configure HTTPS before production use.
 - Figures are management summaries, not audited accounts or tax advice. Salary is income; net family balance is all recorded income minus all recorded expenses.
 - Amounts are INR. No JPY conversion or exchange-rate storage is implemented.
+- CI/CD Pipeline: Automated deployment using Jenkins, Docker Hub, and AWS EC2.
