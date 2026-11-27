@@ -1,5 +1,8 @@
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app import app, db, User
 from werkzeug.security import generate_password_hash
@@ -10,12 +13,33 @@ def client():
     app.config.update(
         TESTING=True,
         SECRET_KEY="test-secret-key",
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:"
+        SQLALCHEMY_DATABASE_URI="sqlite://",
+        SQLALCHEMY_ENGINE_OPTIONS={
+            "poolclass": StaticPool,
+            "connect_args": {"check_same_thread": False}
+        }
+    )
+
+    # Create an isolated SQLite database for testing
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+
+    connection = engine.connect()
+    transaction = connection.begin()
+
+    db.session.remove()
+    db.engine.dispose()
+
+    # Bind Flask-SQLAlchemy session to the test database
+    db.session.configure(
+        bind=connection
     )
 
     with app.app_context():
-        db.drop_all()
-        db.create_all()
+        db.metadata.create_all(bind=connection)
 
         user = User(
             name="Test User",
@@ -30,7 +54,11 @@ def client():
         yield test_client
 
         db.session.remove()
-        db.drop_all()
+        db.metadata.drop_all(bind=connection)
+
+    transaction.rollback()
+    connection.close()
+    engine.dispose()
 
 
 def get_token(client):
@@ -46,7 +74,6 @@ def get_token(client):
 
 def test_health_endpoint(client):
     response = client.get("/api/health")
-
     assert response.status_code == 200
     assert response.get_json()["status"] == "healthy"
 
@@ -59,7 +86,6 @@ def test_invalid_login(client):
             "password": "wrongpassword"
         }
     )
-
     assert response.status_code == 401
 
 
@@ -71,14 +97,12 @@ def test_valid_login(client):
             "password": "TestPassword123"
         }
     )
-
     assert response.status_code == 200
     assert "token" in response.get_json()
 
 
 def test_protected_endpoint_without_token(client):
     response = client.get("/api/auth/me")
-
     assert response.status_code == 401
 
 
